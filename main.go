@@ -1,25 +1,41 @@
 package main
 
 import (
+	"graphql-go/db"
+	"graphql-go/handlers"
+	"log"
 	"net/http"
 
+	"github.com/gorilla/mux"
 	"github.com/graphql-go/handler"
 )
 
 func main() {
-	handler := handler.New(&handler.Config{
+	DB := db.Init()
+	dbHandler := handlers.New(DB)
+	router := mux.NewRouter()
+
+	router.HandleFunc("/books", dbHandler.GetAllBooks).Methods(http.MethodGet)
+	router.HandleFunc("/books/{id}", dbHandler.GetBook).Methods(http.MethodGet)
+	router.HandleFunc("/books", dbHandler.AddBook).Methods(http.MethodPost)
+	router.HandleFunc("/books/{id}", dbHandler.UpdateBook).Methods(http.MethodPut)
+	router.HandleFunc("/books/{id}", dbHandler.DeleteBook).Methods(http.MethodDelete)
+
+	graphqlHandler := handler.New(&handler.Config{
 		Schema:   &BeastSchema,
 		Pretty:   true,
 		GraphiQL: false,
 	})
 
-	http.Handle("/graphql", handler)
+	http.Handle("/graphql", graphqlHandler)
 
 	http.Handle("/sandbox", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write(sandboxHTML)
 	}))
 
-	http.ListenAndServe(":8080", nil)
+	log.Println("API running on port 8080")
+
+	http.ListenAndServe(":8080", router)
 }
 
 var sandboxHTML = []byte(`
